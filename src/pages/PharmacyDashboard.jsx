@@ -1,3 +1,4 @@
+// src/pages/PharmacyDashboard.jsx
 import { useState, useMemo } from 'react';
 import {
   Clock,
@@ -15,8 +16,6 @@ import {
   EmptyState,
   StatusBadge,
 } from '../components/Dashboard';
-// ===== REMOVED: usePatientData =====
-// ===== ADDED: useRealtime =====
 import { useRealtime } from '../context/RealtimeProvider';
 import { useAuth } from '../AuthContext';
 import { useToast } from '../Toast';
@@ -40,7 +39,6 @@ export default function PharmacyDashboard() {
   const [dispenseFor, setDispenseFor] = useState(null);
   const [addStockFor, setAddStockFor] = useState(null);
   
-  // ===== REPLACED usePatientData with useRealtime =====
   const { 
     prescriptions, 
     inventory, 
@@ -52,7 +50,6 @@ export default function PharmacyDashboard() {
     error
   } = useRealtime();
 
-  // ===== Added loading and error handling =====
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -75,9 +72,13 @@ export default function PharmacyDashboard() {
     return m;
   }, [visits]);
 
+  // ===== FIX: Include both 'Waiting for Pharmacy' and 'In Pharmacy' =====
   const pending = prescriptions.filter(
-    (p) => p.dispensed === false && visitStatusMap[p.visitId] === 'Waiting for Pharmacy'
+    (p) => p.dispensed === false && 
+    (visitStatusMap[p.visitId] === 'Waiting for Pharmacy' || 
+     visitStatusMap[p.visitId] === 'In Pharmacy')
   );
+  
   const dispensedToday = prescriptions.filter(
     (p) => p.dispensed === true && isToday(p.dispensedAt)
   );
@@ -120,8 +121,10 @@ export default function PharmacyDashboard() {
   );
 }
 
+// ============================================================
+// PRESCRIPTION QUEUE - FIXED
+// ============================================================
 function PrescriptionQueue({ onDispense }) {
-  // ===== REPLACED usePatientData with useRealtime =====
   const { prescriptions, patients, visits } = useRealtime();
   
   const patientMap = useMemo(() => {
@@ -129,15 +132,22 @@ function PrescriptionQueue({ onDispense }) {
     patients.forEach((p) => (m[p.patientId] = p));
     return m;
   }, [patients]);
+  
   const visitStatusMap = useMemo(() => {
     const m = {};
     visits.forEach((v) => { m[v.visitId] = v.status; });
     return m;
   }, [visits]);
+  
+  // ===== FIX: Include both 'Waiting for Pharmacy' and 'In Pharmacy' =====
   const queue = prescriptions.filter(
-    (p) => p.dispensed === false && visitStatusMap[p.visitId] === 'Waiting for Pharmacy'
+    (p) => p.dispensed === false && 
+    (visitStatusMap[p.visitId] === 'Waiting for Pharmacy' || 
+     visitStatusMap[p.visitId] === 'In Pharmacy')
   );
+  
   if (queue.length === 0) return <EmptyState message="No prescriptions waiting to be dispensed" />;
+  
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -178,10 +188,12 @@ function PrescriptionQueue({ onDispense }) {
   );
 }
 
+// ============================================================
+// DISPENSE MODAL
+// ============================================================
 function DispenseModal({ prescription, visitDocId, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
-  // ===== REPLACED usePatientData with useRealtime =====
   const { patients, consultations, payments } = useRealtime();
   
   const patient = patients.find((p) => p.patientId === prescription.patientId);
@@ -341,8 +353,10 @@ function DispenseModal({ prescription, visitDocId, onClose }) {
   );
 }
 
+// ============================================================
+// INVENTORY TAB
+// ============================================================
 function InventoryTab({ onAddStock }) {
-  // ===== REPLACED usePatientData with useRealtime =====
   const { inventory } = useRealtime();
   
   if (inventory.length === 0) return <EmptyState message="No inventory items" />;
@@ -387,6 +401,9 @@ function InventoryTab({ onAddStock }) {
   );
 }
 
+// ============================================================
+// ADD STOCK MODAL
+// ============================================================
 function AddStockModal({ item, onClose }) {
   const toast = useToast();
   const [qty, setQty] = useState('');
@@ -449,8 +466,10 @@ function AddStockModal({ item, onClose }) {
   );
 }
 
+// ============================================================
+// DISPENSING HISTORY
+// ============================================================
 function DispensingHistory() {
-  // ===== REPLACED usePatientData with useRealtime =====
   const { prescriptions, patients } = useRealtime();
   
   const patientMap = useMemo(() => {
